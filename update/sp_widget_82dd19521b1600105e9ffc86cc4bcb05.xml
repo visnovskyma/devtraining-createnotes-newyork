@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sp_widget">
+    <sp_widget action="INSERT_OR_UPDATE">
+        <category>custom</category>
+        <client_script><![CDATA[function NotesBody($scope,$rootScope) {
+  /* widget controller */
+  var c = this;
+  // client side API spModal, spUtil, spAriaUril, spContextManager
+  // RECEIVING values from Notes List widget
+  // on receiving sysID, we get the selected record's field values from the server to display
+  $scope.$on('selectNote', function(event,data) {
+    // this.server.get() calls the Server script (in this widget) and passes custom input
+    c.server.get({
+      // we name the action to use in server script 
+      // we can address our custom input in servier script using input.action
+      action: 'getNote',
+      // defined value of noteID from other widget where we $emit -ed the value
+      noteID: $rootScope.noteID
+    //this.server.get() returns a promise. When the response is received from the server, the .then() function logic executes 
+    // r stands for response
+    }).then(function(r) {
+      c.data.title = r.data.note.title;
+      c.data.note = r.data.note.note;
+      c.data.noteID = r.data.note.sys_id;
+    });
+  });
+
+  // UPDATING THE SERVICENOW RECORDS
+  // handle the c.updateNote() function from the HTML (ng-change="")
+  // updateType is the passed value from the HTML
+  c.updateNote = function(updateType) {
+    // call the server with a specified input 
+    // we cal call action, noteID, noteBody.. in server script using input.action or input.noteBody..
+		c.server.get({
+      // we are basically passing values from client to the server here
+      // in server script input.action will have a value 'updateNote'
+			action: 'updateNote',
+			noteID: c.data.noteID,
+			noteBody: c.data.note,
+			noteTitle: c.data.title
+		}).then(function(r) {
+      // SENDING DATA TO THE NOTES LIST WIDGET
+      // After the data is updated in the record, we send it back to Notes List widget
+      // We can send an object. It's also a good practice
+      var updatedNotes = {
+        noteTitle: c.data.title,
+        noteBody: c.data.note,
+        // noteID: c.data.noteID  // sys_id of a clicked record
+      }
+      // I don't have to assign data to $rootScope, on the contrary I SHOULD NOT! 
+      // It's a bad practice because $rootScope lies above all the widgets
+      $rootScope.$broadcast('noteBodyUpd', updatedNotes);
+		});
+  }
+}]]></client_script>
+        <controller_as>c</controller_as>
+        <css/>
+        <data_table>sp_instance</data_table>
+        <demo_data/>
+        <description/>
+        <docs/>
+        <field_list/>
+        <has_preview>false</has_preview>
+        <id>notes_body</id>
+        <internal>false</internal>
+        <link><![CDATA[function link(scope, element, attrs, controller) {  }]]></link>
+        <name>Notes Body</name>
+        <option_schema/>
+        <public>false</public>
+        <roles/>
+        <script><![CDATA[(function() {
+  /* populate the 'data' object */
+
+  //input object is the data object received from the Client Script's controller
+  if (input && input.noteID) {
+    var note = new GlideRecord('x_snc_createnotes_note');
+    //if our GlideRecord note has a value of input.noteID //which is defined in client script
+    // .get is one of the shortcut methods in $http
+    // in this case it's connected to ServiceNow (via GlideRecord)
+    if (note.get(input.noteID)) {
+      if (input.action == 'getNote') {
+        data.note = {};
+        // there are many API methods GlideSPScriptable, GlideSPSearchAnalytics, spScriptedFacet
+        $sp.getRecordValues(data.note, note, "title, note, sys_id");
+      } 
+      // what to do when input.action (Action from client script) is different 
+      else if (input.action == 'updateNote') { 
+        // note is a reference to the GlideRecord
+        // and by the following statement we directly change values in the ServiceNow record
+        note.title = input.noteTitle; 
+        note.note = input.noteBody; 
+        // The GlideRecord update() method writes new values for an existing record to the database
+        note.update(); 
+      }
+    }
+  }
+})();]]></script>
+        <servicenow>false</servicenow>
+        <sys_class_name>sp_widget</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2020-01-14 13:56:04</sys_created_on>
+        <sys_id>82dd19521b1600105e9ffc86cc4bcb05</sys_id>
+        <sys_mod_count>68</sys_mod_count>
+        <sys_name>Notes Body</sys_name>
+        <sys_package display_value="CreateNotes" source="x_snc_createnotes">df5fd9a5090232007f44e1046c8ff69f</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="CreateNotes">df5fd9a5090232007f44e1046c8ff69f</sys_scope>
+        <sys_update_name>sp_widget_82dd19521b1600105e9ffc86cc4bcb05</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2020-01-16 15:44:28</sys_updated_on>
+        <template><![CDATA[<div class="panel panel-default" ng-show="c.data.noteID">
+    <div class="panel-heading clearfix">
+      <div class="row">
+        <div class="col-md-12">
+          <input class="form-control" id="note-title" ng-model="c.data.title" ng-change="c.updateNote('title')" ng-model-options="{debounce: 1000}"/>
+        </div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <textarea class="form-control" id="note-body" ng-model="c.data.note" ng-change="c.updateNote('body')" ng-model-options="{debounce: 1000}" ></textarea>
+    </div>
+  </div>
+  ]]></template>
+    </sp_widget>
+</record_update>
